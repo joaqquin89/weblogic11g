@@ -1,0 +1,113 @@
+{
+  "variables": 
+  {
+    "ADMIN_PORT_VAR": "7001",
+    "ADMIN_PORTS_SSL_VAR": "7002",
+    "S1_PORTS_VAR": "7003",
+    "S1_PORTS_SSL_VAR": "7004",    
+    "NODEMANAGER_VAR": "5556",
+    "ADMIN_HOST_VAR": "localhost"
+  },
+  "builders": [{
+
+    "type": "docker",
+    "image": "oraclelinux:latest",
+    "commit": true,
+    "run_command": [
+        "-d",
+        "-i",
+        "-t",
+        "{{.Image}}",
+        "/bin/bash"
+      ],
+    "changes":[
+      "EXPOSE {{ user `ADMIN_PORT_VAR` }}",
+      "EXPOSE {{ user `ADMIN_PORTS_SSL_VAR` }}",
+      "EXPOSE {{ user `S1_PORTS_SSL_VAR` }}",
+      "EXPOSE {{ user `S1_PORTS_VAR` }}",
+      "EXPOSE {{ user `NODEMANAGER_VAR` }}", 
+      "USER oracle",
+      "CMD [\"\"]"
+    ]
+  }],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+      "yum update all && yum upgrade -y",
+      "yum install sudo openssl -y",
+      "yum clean metadata && yum clean all",
+      "mkdir -p /u01/home/app ",
+      "mkdir -p /u01/home/app/bin",
+      "mkdir -p /u01/home/app/conf",
+      "mkdir -p /u01/home/app/soft",
+      "mkdir -p /u01/home/app/certs",
+      "mkdir -p /u01/home/app/sites",
+      "mkdir -p /u01/home/app/Oracle",
+      "mkdir -p /u01/home/app/bea",
+      "mkdir -p /u01/home/app/domains",
+      "mkdir -p /u01/home/app/oraInventory"
+      ]
+    },
+    {
+      "type": "file",
+      "source": "jrockit-jdk1.6.0_24-R28.1.3-4.0.1.tar.gz",
+      "destination": "/u01/home/app/soft/"      
+    },
+    {
+      "type": "file",
+      "source": "wls1036_generic.jar",
+      "destination": "/u01/home/app/soft/"      
+    },         
+    {
+      "type": "file",
+      "source": "files-weblogic.tar",
+      "destination": "/u01/home/app/conf/"      
+    },      
+    {
+        "type":"shell",
+        "execute_command": "{{.Vars}} sudo -E -S bash '{{.Path}}'",
+        "scripts": "install_weblogic.sh",
+        "environment_vars": [
+      
+          "HOME_INIT=/u01/home/app",
+          "JROCKIT=jrockit-jdk1.6.0_24-R28.1.3-4.0.1.tar.gz",
+          "WLS_PKG=wls1036_generic.jar",
+          "JAVA_HOME=/u01/home/app/soft/jrockit-jdk1.6.0_24-R28.1.3-4.0.1",
+          "DOMAIN_PATH=/u01/home/app/domains",
+          "DOMAIN_NAME=fcCLdomain",
+          "WL_HOME=/u01/home/app/Oracle/wlserver_10.3", 
+          "USER_WL=weblogic",
+          "PASS_WL=weblogic123",
+          "USER_NM=weblogic",
+          "PASS_NM=weblogic123",
+          "NM_PATH=/u01/home/app/Oracle/wlserver_10.3/common/nodemanager",
+          "TODAY=TODAY=$(date +%Y%m%d)",
+          "MACHINE_NAME=Machine_MS",
+          "MANAGED_SERVER=FlexCubeServer",
+          "ADMIN_PORT={{ user `ADMIN_PORT_VAR` }}",
+          "ADMIN_PORT_SSL={{ user `ADMIN_PORTS_SSL_VAR` }}",
+          "S1_PORT={{ user `S1_PORTS_VAR` }}",
+          "S1_PORT_SSL={{ user `S1_PORTS_SSL_VAR` }}",    
+          "NODEMANAGER={{ user `NODEMANAGER_VAR` }}",
+          "ADMIN_HOST={{ user `ADMIN_HOST_VAR` }}",
+          "ALIAS_CERT=micert",
+          "PASSWORD_CERT=testingpass",
+          "PATH_CERT=/u01/home/app/certs",
+          "INSTALL_PATH=/u01/home/app/conf",
+          "BEA_HOME=/u01/home/app/Oracle",
+          "JVMS=/u01/home/app/soft/jrockit-jdk1.6.0_24-R28.1.3-4.0.1"
+          ]
+      }
+  ],
+  "post-processors": [
+    [
+      {
+        "type": "docker-tag",
+        "repository": "buffetbase.azurecr.io/flexcube/weblogicbase1036",
+        "tag": "latest"
+      }
+    ]
+  ]
+
+}
